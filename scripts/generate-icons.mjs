@@ -9,7 +9,8 @@ await writeFile(new URL("../src/app/apple-icon.png", import.meta.url), await ren
 
 // ICO directory entries point to PNG images at common browser-tab resolutions.
 const sizes = [16, 32, 48, 64];
-const frames = await Promise.all(sizes.map(size => render(size).png().toBuffer()));
+// Turbopack's ICO decoder requires RGBA PNGs, even when the artwork is opaque.
+const frames = await Promise.all(sizes.map(size => render(size).toColourspace("srgb").ensureAlpha().png({ palette: false }).toBuffer()));
 const directory = Buffer.alloc(6 + sizes.length * 16);
 directory.writeUInt16LE(1, 2);
 directory.writeUInt16LE(sizes.length, 4);
