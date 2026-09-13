@@ -1,0 +1,130 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Profile {
+  id               String       @id @default("main")
+  version          Int          @default(0)
+  name             String       @default("")
+  firstName        String       @default("")
+  lastName         String       @default("")
+  brandMark        String       @default("")
+  title            String       @default("")
+  subtitle         String       @default("")
+  bio              String       @default("")
+  bio2             String       @default("")
+  location         String       @default("")
+  available        Boolean      @default(false)
+  email            String       @default("")
+  github           String       @default("")
+  twitter          String       @default("")
+  linkedin         String       @default("")
+  cal              String       @default("")
+  yearsExp         String       @default("")
+  projectsShipped  String       @default("")
+  ghStars          String       @default("")
+  coffeeStat       String       @default("")
+  showExperience   Boolean      @default(true)
+  marqueeItems     String[]     @default([])
+  philosophy       String       @default("")
+  approach         String       @default("")
+  focus            String       @default("")
+  contactIntro     String       @default("")
+  availabilityNote String       @default("")
+  footerNote       String       @default("")
+  updatedAt        DateTime     @updatedAt
+  skills           Skill[]
+  projects         Project[]
+  experience       Experience[]
+}
+
+model Skill {
+  id        String  @id
+  profileId String  @default("main")
+  profile   Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  name      String
+  slug      String
+  category  String
+  level     Int
+  sortOrder Int
+
+  @@index([profileId, sortOrder])
+}
+
+model Project {
+  id          String   @id
+  profileId   String   @default("main")
+  profile     Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  index       String
+  name        String
+  category    String
+  description String
+  stack       String[]
+  stars       String
+  year        String
+  status      String
+  color       String
+  url         String
+  sourceUrl   String
+  sortOrder   Int
+
+  @@index([profileId, sortOrder])
+}
+
+model Experience {
+  id        String  @id
+  profileId String  @default("main")
+  profile   Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  company   String
+  role      String
+  period    String
+  note      String
+  sortOrder Int
+
+  @@index([profileId, sortOrder])
+}
+
+model Admin {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  sessions     Session[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  adminId   String
+  admin     Admin    @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([adminId])
+  @@index([expiresAt])
+}
+
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model RateLimit {
+  key       String   @id
+  count     Int      @default(1)
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
