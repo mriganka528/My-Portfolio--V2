@@ -119,6 +119,8 @@ To run database-backed browser checks, use a **dedicated empty test database**. 
 
 ## Main files
 
+The favicon uses the supplied teal monogram image, preserved in `public/brand/portfolio-icon.png`. Run `node scripts/generate-icons.mjs` to regenerate `src/app/favicon.ico` (16/32/48/64px), `src/app/icon.png` (512px), and `src/app/apple-icon.png` (180px). The full artwork is resized without cropping. Next.js automatically includes these icons on public and admin pages.
+
 - `src/app`: public/admin pages and HTTP APIs.
 - `src/components/portfolio`: components adapted from the supplied design.
 - `src/components/admin`: login, content editor, and inbox.
