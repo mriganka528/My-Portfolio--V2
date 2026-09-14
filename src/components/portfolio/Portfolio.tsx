@@ -1,7 +1,7 @@
 "use client";
-import { useState, useEffect } from "react";
-import ParticleCanvas from "./ParticleCanvas";
-import CustomCursor from "./CustomCursor";
+import { useState, useEffect, useRef } from "react";
+import dynamic from "next/dynamic";
+import { useMediaQuery } from "../useMediaQuery";
 import Hero from "./Hero";
 import About from "./About";
 import Skills from "./Skills";
@@ -11,85 +11,88 @@ import { PortfolioProvider, usePortfolioData, type PortfolioData } from "./provi
 import Reveal from "./Reveal";
 
 const NAV_ITEMS = ["about", "skills", "projects", "contact"];
+const DesktopEffects = dynamic(() => import("./DesktopEffects"), { ssr: false });
+
+function goToSection(id: string) {
+  document.getElementById(id)?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
+}
 
 function LeftNav() {
   const { data: { profile } } = usePortfolioData();
   const [active, setActive] = useState("hero");
-  const [scrollPct, setScrollPct] = useState(0);
+  const progressRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const ids = ["hero", ...NAV_ITEMS];
-    const obs = ids.map((id) => {
-      const el = document.getElementById(id);
-      if (!el) return null;
-      const o = new IntersectionObserver(
-        ([e]) => { if (e.isIntersecting) setActive(id); },
-        { threshold: 0.35 }
-      );
-      o.observe(el);
-      return o;
-    });
-    return () => obs.forEach((o) => o?.disconnect());
+    const observer = new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) setActive(entry.target.id);
+      }
+    }, { rootMargin: "-15% 0px -65% 0px", threshold: 0 });
+    for (const id of ["hero", ...NAV_ITEMS]) {
+      const section = document.getElementById(id);
+      if (section) observer.observe(section);
+    }
+    return () => observer.disconnect();
   }, []);
 
   useEffect(() => {
-    const onScroll = () => {
+    let frame = 0;
+    const update = () => {
+      frame = 0;
       const d = document.documentElement;
       const total = d.scrollHeight - d.clientHeight;
-      setScrollPct(total > 0 ? Math.min(100, Math.max(0, (d.scrollTop / total) * 100)) : 0);
+      const progress = total > 0 ? Math.min(1, Math.max(0, d.scrollTop / total)) : 0;
+      progressRef.current?.style.setProperty("--scroll-progress", String(progress));
     };
+    // Keep scroll updates out of React and change only a composited transform.
+    const onScroll = () => { if (!frame) frame = requestAnimationFrame(update); };
+    update();
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    window.addEventListener("resize", onScroll);
+    const resize = new ResizeObserver(onScroll);
+    resize.observe(document.body);
+    return () => {
+      cancelAnimationFrame(frame);
+      resize.disconnect();
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
   }, []);
-
-  const go = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
 
   return (
     <aside
-      className="fixed left-0 top-0 bottom-0 z-50 w-14 flex flex-col items-center justify-between py-6 border-r"
-      style={{ borderColor: "rgba(0,229,184,0.08)", background: "rgba(4,8,13,0.88)", backdropFilter: "blur(12px)" }}
+      className="portfolio-nav"
     >
-      <div className="absolute left-0 top-0 bottom-0 w-px" style={{ background: "rgba(0,229,184,0.07)" }}>
-        <div
-          className="absolute left-0 top-0 w-full transition-all duration-150"
-          style={{ height: `${scrollPct}%`, background: "var(--teal)", boxShadow: "0 0 8px var(--teal)" }}
-        />
+      <div className="portfolio-scroll-track" aria-hidden="true">
+        <div ref={progressRef} className="portfolio-scroll-progress" />
       </div>
 
       <button
         aria-label="Back to top"
-        onClick={() => go("hero")}
-        className="font-head font-bold text-xs tracking-widest"
-        style={{ color: "var(--teal)", writingMode: "vertical-rl", textOrientation: "mixed" }}
+        onClick={() => goToSection("hero")}
+        className="portfolio-brand font-head font-bold"
         data-hover
       >
         {profile.brandMark || `${profile.firstName.charAt(0)}${profile.lastName.charAt(0)}`.toUpperCase() || "⟨/⟩"}
       </button>
 
-      <nav aria-label="Portfolio sections" className="flex flex-col items-center gap-6">
+      <nav aria-label="Portfolio sections" className="portfolio-nav-links">
         {NAV_ITEMS.map((item) => (
           <button
             key={item}
             aria-current={active === item ? "location" : undefined}
-            onClick={() => go(item)}
-            className="font-code text-[9px] tracking-widest uppercase transition-colors duration-200"
-            style={{
-              color: active === item ? "var(--teal)" : "var(--dim)",
-              writingMode: "vertical-rl",
-              textOrientation: "mixed",
-              transform: "rotate(180deg)",
-            }}
+            onClick={() => goToSection(item)}
+            className="font-code uppercase"
             data-hover
           >
-            {item}
+            <span className="portfolio-nav-label">{item}</span>
           </button>
         ))}
       </nav>
 
       <button
-        onClick={() => go("contact")}
-        className="font-code text-[8px] tracking-widest uppercase px-1 py-2 border transition-colors"
-        style={{ color: "var(--teal)", borderColor: "rgba(0,229,184,0.3)", writingMode: "vertical-rl" }}
+        onClick={() => goToSection("contact")}
+        className="portfolio-hire font-code uppercase"
         data-hover
       >
         hire me
@@ -101,7 +104,7 @@ function LeftNav() {
 function Footer() {
   const { data: { profile } } = usePortfolioData();
   return (
-    <footer className="border-t py-7 px-8 md:px-20" style={{ borderColor: "rgba(0,229,184,0.08)" }}>
+    <footer className="portfolio-footer border-t py-7 px-8 md:px-20" style={{ borderColor: "rgba(0,229,184,0.08)" }}>
       <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
         <span className="font-code text-[10px]" style={{ color: "var(--dim)" }}>
           <span style={{ color: "var(--teal)" }}>~/</span>portfolio · {new Date().getFullYear()}
@@ -110,7 +113,7 @@ function Footer() {
           {profile.footerNote}
         </span>
         <button
-          onClick={() => document.getElementById("hero")?.scrollIntoView({ behavior: "smooth" })}
+          onClick={() => goToSection("hero")}
           className="font-code text-[10px] transition-colors hover:text-teal-400"
           style={{ color: "var(--dim)" }}
           data-hover
@@ -123,14 +126,14 @@ function Footer() {
 }
 
 export default function Portfolio({ data }: { data: PortfolioData }) {
+  const desktopEffects = useMediaQuery("(min-width: 1024px) and (pointer: fine) and (hover: hover) and (prefers-reduced-motion: no-preference)");
   return (
     <PortfolioProvider data={data}>
-    <div className="scanline min-h-screen bg-background text-foreground">
+    <div className="portfolio-page scanline min-h-screen bg-background text-foreground">
       <a href="#hero" className="skip-link font-code text-xs">Skip to content</a>
-      <CustomCursor />
-      <ParticleCanvas />
+      {desktopEffects && <DesktopEffects />}
       <LeftNav />
-      <main className="relative z-10 pl-14">
+      <main className="portfolio-main relative z-10">
         <Hero />
         <Reveal><About /></Reveal>
         <Skills />

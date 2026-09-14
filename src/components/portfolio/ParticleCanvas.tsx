@@ -9,7 +9,7 @@ export default function ParticleCanvas() {
     const canvas = ref.current!;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    let W = 0, H = 0, raf = 0;
+    let W = 0, H = 0, raf = 0, lastFrame = 0;
     const mouse = { x: -999, y: -999 };
 
     type P = { x: number; y: number; vx: number; vy: number; r: number };
@@ -34,7 +34,10 @@ export default function ParticleCanvas() {
     window.addEventListener("mousemove", onMove);
 
     const D = 110;
-    const draw = () => {
+    const draw = (timestamp: number) => {
+      raf = requestAnimationFrame(draw);
+      if (timestamp - lastFrame < 1000 / 30) return;
+      lastFrame = timestamp;
       ctx.clearRect(0, 0, W, H);
       for (const p of pts) {
         const dx = p.x - mouse.x, dy = p.y - mouse.y;
@@ -52,8 +55,9 @@ export default function ParticleCanvas() {
       for (let i = 0; i < pts.length; i++) {
         for (let j = i + 1; j < pts.length; j++) {
           const dx = pts[i].x - pts[j].x, dy = pts[i].y - pts[j].y;
-          const d = Math.hypot(dx, dy);
-          if (d < D) {
+          const distanceSquared = dx * dx + dy * dy;
+          if (distanceSquared < D * D) {
+            const d = Math.sqrt(distanceSquared);
             const a = (1 - d / D) * 0.2;
             ctx.beginPath();
             ctx.strokeStyle = `rgba(0,229,184,${a})`;
@@ -68,14 +72,19 @@ export default function ParticleCanvas() {
         ctx.fillStyle = "rgba(0,229,184,0.5)";
         ctx.fill();
       }
-      raf = requestAnimationFrame(draw);
     };
-    draw();
+    const visibility = () => {
+      cancelAnimationFrame(raf);
+      if (!document.hidden) { lastFrame = 0; raf = requestAnimationFrame(draw); }
+    };
+    visibility();
+    document.addEventListener("visibilitychange", visibility);
 
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", init);
       window.removeEventListener("mousemove", onMove);
+      document.removeEventListener("visibilitychange", visibility);
     };
   }, []);
 

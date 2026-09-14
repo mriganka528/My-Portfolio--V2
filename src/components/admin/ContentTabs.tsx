@@ -57,10 +57,11 @@ function ToggleField({ label, value, onChange }: { label: string; value: boolean
     <div className="flex items-center justify-between py-2">
       <label className="font-code text-[9px] tracking-widest uppercase" style={{ color: "var(--dim)" }}>{label}</label>
       <button type="button" role="switch" aria-label={label} aria-checked={value} onClick={() => onChange(!value)}
-        className="w-10 h-5 rounded-full relative transition-colors"
-        style={{ background: value ? "var(--teal)" : "rgba(255,255,255,0.1)" }}>
+        className="w-12 h-11 shrink-0 flex items-center justify-center">
+        <span className="block w-10 h-5 rounded-full relative transition-colors" style={{ background: value ? "var(--teal)" : "rgba(255,255,255,0.1)" }}>
         <span className="absolute top-0.5 w-4 h-4 rounded-full transition-all duration-200"
           style={{ background: "#fff", left: value ? "calc(100% - 18px)" : "2px" }} />
+        </span>
       </button>
     </div>
   );
@@ -69,7 +70,7 @@ function ToggleField({ label, value, onChange }: { label: string; value: boolean
 export function Toast({ msg, onClose }: { msg: string; onClose: () => void }) {
   useEffect(() => { const t = setTimeout(onClose, 3000); return () => clearTimeout(t); }, [onClose]);
   return (
-    <div role="status" className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-3 border font-code text-xs"
+    <div role="status" className="admin-toast fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-3 border font-code text-xs"
       style={{ background: "rgba(6,16,26,0.95)", borderColor: "rgba(0,229,184,0.3)", color: "var(--teal)", backdropFilter: "blur(8px)" }}>
       <span>✓</span> {msg}
     </div>
@@ -78,7 +79,7 @@ export function Toast({ msg, onClose }: { msg: string; onClose: () => void }) {
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="border p-6" style={{ borderColor: "rgba(0,229,184,0.1)", background: "rgba(6,16,26,0.5)" }}>
+    <div className="admin-section-card border p-6" style={{ borderColor: "rgba(0,229,184,0.1)", background: "rgba(6,16,26,0.5)" }}>
       <h3 className="font-head font-bold text-base mb-5" style={{ color: "var(--teal)" }}>{title}</h3>
       {children}
     </div>

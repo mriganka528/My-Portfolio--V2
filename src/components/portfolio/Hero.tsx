@@ -48,7 +48,7 @@ export default function Hero() {
   const marqueeItems = profile.marqueeItems.length ? profile.marqueeItems : [profile.title, ...profile.subtitle.split("·"), profile.location].map(value => value.trim()).filter(Boolean);
 
   return (
-    <section id="hero" className="relative min-h-screen flex flex-col justify-center px-8 md:px-20 pt-8 grid-overlay overflow-hidden">
+    <section id="hero" className="relative min-h-svh flex flex-col justify-center px-8 md:px-20 pt-8 grid-overlay overflow-hidden">
       {/* Ghost name background */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden" aria-hidden>
         <span className="font-head font-bold uppercase tracking-tighter opacity-[0.025] whitespace-nowrap"
@@ -57,12 +57,12 @@ export default function Hero() {
         </span>
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-16 items-center">
+      <div className="hero-layout relative z-10 max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)] gap-10 lg:gap-16 items-center">
         {/* Left */}
         <div className="min-w-0">
-          <div className="inline-flex items-center gap-2.5 mb-10 px-4 py-1.5 border"
+          <div className="hero-availability inline-flex max-w-full items-center gap-2.5 mb-8 sm:mb-10 px-4 py-2 border"
             style={{ borderColor: "rgba(0,229,184,0.25)", background: "rgba(0,229,184,0.05)" }}>
-            <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: profile.available ? "var(--teal)" : "var(--coral)" }} />
+            <span className="w-1.5 h-1.5 shrink-0 rounded-full animate-pulse" style={{ background: profile.available ? "var(--teal)" : "var(--coral)" }} />
             <span className="font-code text-[10px] tracking-widest uppercase" style={{ color: profile.available ? "var(--teal)" : "var(--coral)" }}>
               {profile.name || profile.firstName ? [profile.available ? "Open to work" : "Not available", profile.location].filter(Boolean).join(" · ") : "Profile not published"}
             </span>
@@ -79,7 +79,7 @@ export default function Hero() {
           <div className="overflow-hidden border-y py-2.5 mb-8" style={{ borderColor: "rgba(0,229,184,0.12)" }}>
             <div className="marquee-inner inline-flex gap-12 font-code text-xs tracking-widest uppercase" style={{ color: "var(--dim)" }}>
               {[...marqueeItems, ...marqueeItems].map((t, i) => (
-                <span key={i}>{t}<span className="mx-6 opacity-30">◆</span></span>
+                <span key={i} className={i >= marqueeItems.length ? "marquee-copy" : undefined} aria-hidden={i >= marqueeItems.length || undefined}>{t}<span className="mx-6 opacity-30">◆</span></span>
               ))}
             </div>
           </div>
@@ -88,7 +88,7 @@ export default function Hero() {
             {profile.bio || (!profile.name && !profile.firstName ? "Content will appear here once published." : "")}
           </p>
 
-          <div className="flex flex-wrap gap-4 mb-14">
+          <div className="hero-actions flex flex-wrap gap-4 mb-10 sm:mb-14">
             <a href="#projects" className="group inline-flex items-center gap-3 px-7 py-3.5 font-code text-sm font-medium tracking-wide transition-opacity hover:opacity-90"
               style={{ background: "var(--teal)", color: "var(--bg)" }} data-hover>
               explore work <span className="group-hover:translate-x-1 transition-transform inline-block">→</span>
@@ -113,20 +113,20 @@ export default function Hero() {
         </div>
 
         {/* Right: terminal */}
-        <div className="border teal-glow" style={{ borderColor: "rgba(0,229,184,0.18)", background: "rgba(4,8,13,0.95)", backdropFilter: "blur(12px)" }}>
+        <div className="portfolio-terminal min-w-0 border teal-glow" style={{ borderColor: "rgba(0,229,184,0.18)", background: "rgba(4,8,13,0.95)" }}>
           <div className="flex items-center gap-3 px-4 py-3 border-b" style={{ borderColor: "rgba(0,229,184,0.1)", background: "rgba(6,16,26,0.8)" }}>
             <div className="flex gap-1.5">
               {["var(--coral)", "#f5c400", "var(--teal)"].map((c, i) => (
                 <div key={i} className="w-2 h-2 rounded-full" style={{ background: c, opacity: 0.7 }} />
               ))}
             </div>
-            <span className="font-code text-[10px] ml-2" style={{ color: "var(--dim)" }}>
+            <span className="min-w-0 truncate font-code text-[10px] ml-2" style={{ color: "var(--dim)" }}>
               bash · {profile.name.toLowerCase().replace(" ", "_")}@portfolio
             </span>
-            <span className="ml-auto font-code text-[10px]" style={{ color: "var(--teal)" }}>● LIVE</span>
+            <span className="ml-auto shrink-0 font-code text-[10px]" style={{ color: "var(--teal)" }}>● LIVE</span>
           </div>
 
-          <div ref={bodyRef} className="h-64 overflow-y-auto p-4 space-y-1 cursor-text" onClick={() => inputRef.current?.focus()}>
+          <div ref={bodyRef} className="terminal-body h-64 overflow-y-auto p-4 space-y-1 cursor-text" onClick={() => inputRef.current?.focus({ preventScroll: true })}>
             {hist.map((e, i) => (
               <div key={i} className="font-code text-[11px] leading-5">
                 {e.cmd !== undefined && (
@@ -143,7 +143,7 @@ export default function Hero() {
             <div className="flex gap-2 items-center font-code text-[11px]">
               <span style={{ color: "var(--teal)" }}>❯</span>
               <input aria-label="Terminal command" maxLength={200} ref={inputRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={onKey}
-                className="flex-1 bg-transparent outline-none" spellCheck={false} autoComplete="off"
+                className="min-w-0 flex-1 bg-transparent outline-none" spellCheck={false} autoComplete="off" autoCapitalize="none" enterKeyHint="send"
                 style={{ color: "var(--text)", caretColor: "var(--teal)", fontFamily: "inherit", fontSize: "inherit" }} />
             </div>
           </div>

@@ -16,10 +16,12 @@ export default function CustomCursor() {
     const onMove = (e: MouseEvent) => {
       pos.current = { x: e.clientX, y: e.clientY };
       hovering.current = !!(e.target as Element).closest("a,button,[data-hover],input,textarea");
+      if (!raf.current) raf.current = requestAnimationFrame(tick);
     };
     document.addEventListener("mousemove", onMove);
 
     const tick = () => {
+      raf.current = 0;
       const { x, y } = pos.current;
       const s = hovering.current ? "scale(2.5)" : "scale(1)";
       if (hRef.current) {
@@ -33,9 +35,7 @@ export default function CustomCursor() {
       if (dotRef.current) {
         dotRef.current.style.transform = `translate(${x - 3}px, ${y - 3}px) ${s}`;
       }
-      raf.current = requestAnimationFrame(tick);
     };
-    raf.current = requestAnimationFrame(tick);
 
     return () => {
       document.documentElement.classList.remove("custom-cursor-active");

@@ -73,6 +73,8 @@ The header **reset** button discards unsaved edits and restores the last saved v
 
 The contact form stores messages in PostgreSQL and reports success only after insertion. No email delivery service is needed; messages are read in the admin inbox. It does not send notification emails.
 
+On phones, navigation keeps the original vertical sidebar style in a compact 52px rail, with larger touch targets, a highlighted active section, and a vertical scroll indicator. Content fits alongside the rail without horizontal overflow. Scrolling uses the browser's native smooth behavior and respects reduced-motion preferences. Touch devices skip particle rendering, fixed decorative overlays, and automatic reveal/marquee animations. Desktop decoration loads only on eligible devices; scroll progress updates do not trigger React renders. The viewport allows zooming in and returning to the initial scale, while preventing zooming out below the device-width layout.
+
 ## Authentication
 
 Custom server-side authentication uses salted scrypt password hashes, random opaque session tokens, and only SHA-256 token hashes in the database. **Keep me signed in for 30 days** is checked by default on the login form. Unchecking it creates a 12-hour session. Both options use persistent cookies, so reopening the browser keeps the admin signed in until the selected expiry. The expiry is fixed from sign-in; activity does not extend it. Existing sessions retain their original expiry until the next sign-in. Logout and password rotation revoke sessions immediately. Cookies are HttpOnly and SameSite=Strict, with Secure enabled in production. Every admin API checks the database session; mutations validate the request origin and input.

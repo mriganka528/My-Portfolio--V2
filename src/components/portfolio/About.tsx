@@ -6,12 +6,12 @@ export default function About() {
   const { bio, bio2, philosophy, approach, focus } = data.profile;
 
   return (
-    <section id="about" className="py-28 px-8 md:px-20 border-t relative" style={{ borderColor: "rgba(0,229,184,0.08)" }}>
+    <section id="about" className="portfolio-section py-28 px-8 md:px-20 border-t relative" style={{ borderColor: "rgba(0,229,184,0.08)" }}>
       <div
         className="absolute right-0 top-0 bottom-0 w-px opacity-10"
         style={{ background: "linear-gradient(to bottom, transparent, var(--teal), transparent)" }}
       />
-      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-[180px_1fr] gap-12">
+      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-[180px_minmax(0,1fr)] gap-8 lg:gap-12">
         <div className="pt-1">
           <p className="font-code text-[10px] tracking-widest uppercase mb-3" style={{ color: "var(--teal)" }}>{"// 01"}</p>
           <h2 className="font-head font-bold leading-none" style={{ fontSize: "clamp(2rem,4vw,3.5rem)" }}>ABOUT</h2>

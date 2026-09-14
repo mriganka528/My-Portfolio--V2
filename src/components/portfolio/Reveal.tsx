@@ -1,6 +1,27 @@
 "use client";
-import { motion } from "framer-motion";
+import { useEffect, useRef } from "react";
 
 export default function Reveal({ children }: { children: React.ReactNode }) {
-  return <motion.div initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.08 }} transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}>{children}</motion.div>;
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const element = ref.current!;
+    const media = window.matchMedia("(min-width: 1024px) and (pointer: fine) and (hover: hover) and (prefers-reduced-motion: no-preference)");
+    let observer: IntersectionObserver | undefined;
+    const update = () => {
+      observer?.disconnect();
+      delete element.dataset.reveal;
+      if (!media.matches || element.getBoundingClientRect().top < window.innerHeight) return;
+      element.dataset.reveal = "pending";
+      observer = new IntersectionObserver(([entry]) => {
+        if (!entry.isIntersecting) return;
+        element.dataset.reveal = "visible";
+        observer?.disconnect();
+      }, { rootMargin: "0px 0px 80px 0px", threshold: 0 });
+      observer.observe(element);
+    };
+    update();
+    media.addEventListener("change", update);
+    return () => { observer?.disconnect(); media.removeEventListener("change", update); };
+  }, []);
+  return <div ref={ref} className="section-reveal">{children}</div>;
 }

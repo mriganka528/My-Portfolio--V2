@@ -116,7 +116,7 @@ export default function AdminEditor({ initialData, email }: { initialData: Portf
           </fieldset>
           {tab === "messages" && <MessagesTab />}
         </motion.div>
-        {dirty && <div className="fixed bottom-6 right-6 z-50"><button disabled={pending} onClick={save} className="font-code text-sm px-6 py-3 font-medium shadow-lg transition-opacity hover:opacity-90 disabled:opacity-50" style={{ background: "var(--teal)", color: "var(--bg)", boxShadow: "0 0 30px rgba(0,229,184,0.3)" }}>{pending ? "saving…" : "save changes →"}</button></div>}
+        {dirty && <div className="admin-save-dock fixed bottom-6 right-6 z-50"><button disabled={pending} onClick={save} className="font-code text-sm px-6 py-3 font-medium shadow-lg transition-opacity hover:opacity-90 disabled:opacity-50" style={{ background: "var(--teal)", color: "var(--bg)", boxShadow: "0 0 30px rgba(0,229,184,0.3)" }}>{pending ? "saving…" : "save changes →"}</button></div>}
       </main>
     </div>
     {toast && <Toast msg={toast} onClose={closeToast} />}

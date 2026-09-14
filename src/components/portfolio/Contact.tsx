@@ -49,8 +49,8 @@ export default function Contact() {
   };
 
   return (
-    <section id="contact" className="py-28 px-8 md:px-20 border-t relative" style={{ borderColor: "rgba(0,229,184,0.08)" }}>
-      <div className="absolute bottom-0 left-0 w-[500px] h-[300px] pointer-events-none"
+    <section id="contact" className="portfolio-section py-28 px-8 md:px-20 border-t relative" style={{ borderColor: "rgba(0,229,184,0.08)" }}>
+      <div className="absolute bottom-0 left-0 w-full max-w-[500px] h-[300px] pointer-events-none"
         style={{ background: "radial-gradient(ellipse at left bottom, rgba(0,229,184,0.05) 0%, transparent 65%)" }} />
 
       <div className="max-w-7xl mx-auto relative z-10">
@@ -61,8 +61,8 @@ export default function Contact() {
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
-          <div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16">
+          <div className="min-w-0">
             <p className="text-sm leading-relaxed mb-10" style={{ color: "#7a9ab5", fontWeight: 300 }}>
               {profile.contactIntro}
             </p>
@@ -71,13 +71,13 @@ export default function Contact() {
               {links.map((lk) => (
                 <button key={lk.label}
                   onClick={() => lk.copy ? void copyEmail() : window.open(lk.href, "_blank", "noopener,noreferrer")}
-                  className="w-full flex items-center gap-5 py-4 px-5 border-b group transition-colors text-left"
+                  className="contact-link w-full flex items-center gap-3 sm:gap-5 py-4 px-2 sm:px-5 border-b group transition-colors text-left"
                   style={{ borderColor: "rgba(0,229,184,0.08)" }} data-hover>
                   <span className="font-code text-[9px] tracking-widest uppercase w-16 shrink-0" style={{ color: "var(--dim)" }}>{lk.label}</span>
                   <span className="font-code text-xs flex-1 min-w-0 break-all group-hover:text-[var(--teal)] transition-colors" style={{ color: "#5a7a94" }}>
                     {lk.copy && copied ? "✓ copied!" : lk.val}
                   </span>
-                  <span className="font-code text-xs opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all inline-block" style={{ color: "var(--teal)" }}>→</span>
+                  <span className="font-code text-xs shrink-0 opacity-60 sm:opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all inline-block" style={{ color: "var(--teal)" }}>→</span>
                 </button>
               ))}
             </div>
@@ -96,7 +96,7 @@ export default function Contact() {
             </div>
           </div>
 
-          <div className="border p-8" style={{ borderColor: "rgba(0,229,184,0.12)", background: "rgba(6,16,26,0.7)", backdropFilter: "blur(8px)" }}>
+          <div className="contact-form min-w-0 border p-5 sm:p-8" style={{ borderColor: "rgba(0,229,184,0.12)", background: "rgba(6,16,26,0.7)" }}>
             <p className="font-code text-[9px] tracking-widest uppercase mb-7" style={{ color: "var(--dim)" }}>{"// send a message"}</p>
             {sent ? (
               <div role="status" className="flex flex-col items-center justify-center py-16 gap-3">
