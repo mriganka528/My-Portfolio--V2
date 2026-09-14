@@ -161,8 +161,8 @@ body::before {
 
 /* ── Marquee ───────────────────────────────────── */
 @keyframes marquee { from { transform:translateX(0); } to { transform:translateX(-50%); } }
-.marquee-inner { animation: marquee 22s linear infinite; white-space: nowrap; }
-.marquee-inner:hover { animation-play-state: paused; }
+.marquee-inner { --marquee-gap: 3rem; width: max-content; gap: var(--marquee-gap); padding-right: var(--marquee-gap); animation: marquee 22s linear infinite; white-space: nowrap; will-change: transform; }
+.marquee-inner > span { flex-shrink: 0; }
 
 /* ── Diagonal clip divider ─────────────────────── */
 .clip-diagonal { clip-path: polygon(0 0, 100% 0, 100% 90%, 0 100%); }
@@ -245,6 +245,7 @@ select { color-scheme: dark; }
 
 @media (pointer: fine) and (hover: hover) {
   .custom-cursor-active body, .custom-cursor-active body a, .custom-cursor-active body button { cursor: none; }
+  .marquee-inner:hover { animation-play-state: paused; }
   .skill-card { transition: border-color 180ms, background 180ms, transform 180ms; }
   .skill-card:hover { border-color: var(--skill-border); background: var(--skill-background); transform: translateY(-3px); }
 }
@@ -331,9 +332,6 @@ select { color-scheme: dark; }
   .teal-glow { box-shadow: none; }
   .teal-text-glow { text-shadow: none; }
   .animate-pulse, .blink { animation: none; }
-  .marquee-inner { animation: none; white-space: normal; flex-wrap: wrap; gap: 0.5rem 1rem; max-width: 100%; }
-  .marquee-copy { display: none; }
-  .marquee-inner span span { margin-inline: 0.75rem; }
   .project-panel { transition: none; }
   .admin-header, .admin-toast { backdrop-filter: none !important; }
   .section-reveal { opacity: 1; transform: none; animation: none; }
@@ -345,7 +343,8 @@ select { color-scheme: dark; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
   .reveal { opacity: 1; }
-  .marquee-inner { white-space: normal; flex-wrap: wrap; }
+  .marquee-inner { width: 100%; max-width: 100%; padding-right: 0; animation: none !important; transform: none; white-space: normal; flex-wrap: wrap; gap: 0.5rem 1rem; will-change: auto; }
+  .marquee-inner > span { max-width: 100%; overflow-wrap: anywhere; }
   .marquee-copy { display: none; }
   .scanline::before, .glitch::before, .glitch::after { display: none; }
 }

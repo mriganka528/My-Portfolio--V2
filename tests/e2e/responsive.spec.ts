@@ -54,14 +54,15 @@ test.describe("mobile scrolling and zoom", () => {
     await client.detach();
   });
 
-  test("touch devices show content without continuous decorative animations", async ({ page, isMobile }) => {
+  test("touch devices keep the marquee moving while heavy decorative effects stay disabled", async ({ page, isMobile }) => {
     test.skip(!isMobile, "Touch-device rendering check.");
     await page.goto("/");
     await expect(page.locator("canvas")).toHaveCount(0);
     await expect(page.locator(".custom-cursor")).toHaveCount(0);
     expect(await page.evaluate(() => getComputedStyle(document.body, "::after").display)).toBe("none");
     expect(await page.locator(".scanline").evaluate(element => getComputedStyle(element, "::before").display)).toBe("none");
-    await expect.poll(() => page.evaluate(() => document.getAnimations().filter(animation => animation.playState === "running").length)).toBe(0);
+    await expect(page.locator(".marquee-inner")).toHaveCSS("white-space", "nowrap");
+    await expect.poll(() => page.evaluate(() => document.getAnimations().filter(animation => animation.playState === "running").map(animation => animation instanceof CSSAnimation ? animation.animationName : "unknown"))).toEqual(["marquee"]);
     for (const reveal of await page.locator(".section-reveal").all()) await expect(reveal).toHaveCSS("opacity", "1");
   });
 

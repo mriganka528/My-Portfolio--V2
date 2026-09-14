@@ -73,7 +73,7 @@ The header **reset** button discards unsaved edits and restores the last saved v
 
 The contact form stores messages in PostgreSQL and reports success only after insertion. No email delivery service is needed; messages are read in the admin inbox. It does not send notification emails.
 
-On phones, navigation keeps the original vertical sidebar style in a compact 52px rail, with larger touch targets, a highlighted active section, and a vertical scroll indicator. Content fits alongside the rail without horizontal overflow. Scrolling uses the browser's native smooth behavior and respects reduced-motion preferences. Touch devices skip particle rendering, fixed decorative overlays, and automatic reveal/marquee animations. Desktop decoration loads only on eligible devices; scroll progress updates do not trigger React renders. The viewport allows zooming in and returning to the initial scale, while preventing zooming out below the device-width layout.
+On phones, navigation keeps the original vertical sidebar style in a compact 52px rail, with larger touch targets, a highlighted active section, and a vertical scroll indicator. Content fits alongside the rail without horizontal overflow. Scrolling uses the browser's native smooth behavior and respects reduced-motion preferences. Touch devices skip particle rendering, fixed decorative overlays, and automatic reveal animations. The marquee keeps its continuous horizontal scrolling on mobile and desktop, with a static version for reduced-motion preferences. Desktop decoration loads only on eligible devices; scroll progress updates do not trigger React renders. The viewport allows zooming in and returning to the initial scale, while preventing zooming out below the device-width layout.
 
 ## Authentication
 
