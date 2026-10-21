@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { test, expect, type APIResponse } from "@playwright/test";
 import { Pool } from "pg";
 import { hashPassword, hashToken } from "../../src/lib/password";
+import { loginThroughApi } from "./auth-helpers";
 
 const origin = "http://127.0.0.1:3100";
 const adminId = randomUUID();
@@ -9,7 +10,7 @@ const email = `security-${adminId}@example.org`;
 const contactEmail = `contact-${adminId}@example.org`;
 const password = randomUUID();
 const key = (namespace: string, identifier: string) => `${namespace}:${hashToken(identifier)}`;
-const keys = [key("login-address", "shared"), key("contact-address", "shared"), key("login-email", email), key("contact-email", contactEmail), key("admin-read", adminId), key("admin-write", adminId)];
+const keys = [key("login-address", "shared"), key("login-otp", "shared"), key("contact-address", "shared"), key("login-email", email), key("contact-email", contactEmail), key("admin-read", adminId), key("admin-write", adminId)];
 let db: Pool;
 
 async function seedLimit(namespace: string, identifier: string, count: number) {
@@ -46,8 +47,7 @@ test.describe("database-backed session and rate-limit enforcement", () => {
 
   for (const rememberMe of [true, false]) {
     test(`${rememberMe ? "30-day" : "12-hour"} sessions survive navigation and expire on the server`, async ({ context, page, browser }) => {
-      const response = await context.request.post("/api/auth/login", { headers: { origin }, data: { email, password, rememberMe } });
-      expect(response.status()).toBe(200);
+      await loginThroughApi(context.request, email, password, rememberMe);
       const cookie = (await context.cookies()).find(item => item.name === "portfolio_admin_session")!;
       expect(cookie).toBeDefined();
       expect(cookie.httpOnly).toBe(true);
@@ -101,11 +101,11 @@ test.describe("database-backed session and rate-limit enforcement", () => {
   });
 
   test("admin quotas cover reads and writes across sessions while logout still revokes access", async ({ context, browser }) => {
-    expect((await context.request.post("/api/auth/login", { headers: { origin }, data: { email, password, rememberMe: true } })).status()).toBe(200);
+    await loginThroughApi(context.request, email, password, true);
     const cookie = (await context.cookies()).find(item => item.name === "portfolio_admin_session")!;
     const second = await browser.newContext();
     try {
-      expect((await second.request.post(`${origin}/api/auth/login`, { headers: { origin }, data: { email, password } })).status()).toBe(200);
+      await loginThroughApi(second.request, email, password);
       await seedLimit("admin-read", adminId, 119);
       expect((await context.request.get("/api/admin/content")).status()).toBe(200);
       await expectLimited(await second.request.get(`${origin}/api/admin/messages`));

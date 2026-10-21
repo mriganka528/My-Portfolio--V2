@@ -92,3 +92,25 @@ export const loginSchema = z.object({
   password: z.string().min(1).max(128),
   rememberMe: z.boolean().optional().default(false)
 });
+
+export const passwordSchema = z.string()
+  .min(12, "Use a password containing at least 12 characters.")
+  .max(128, "Use a password containing no more than 128 characters.");
+export const otpCodeSchema = z.string().regex(/^\d{6}$/, "Enter the 6-digit verification code.");
+export const otpVerifySchema = z.object({ code: otpCodeSchema });
+export const loginVerifySchema = z.object({
+  code: otpCodeSchema,
+  rememberMe: z.boolean().optional().default(false)
+});
+export const forgotPasswordSchema = z.object({
+  email: z.email().max(254).transform(value => value.toLowerCase())
+});
+export const resetPasswordSchema = z.object({ password: passwordSchema });
+export const settingsPasswordSchema = z.object({
+  currentPassword: z.string().min(1).max(128),
+  newPassword: passwordSchema
+});
+export const settingsEmailSchema = z.object({
+  currentPassword: z.string().min(1).max(128),
+  email: z.email().max(254).transform(value => value.toLowerCase())
+});

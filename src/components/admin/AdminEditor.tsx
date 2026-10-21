@@ -5,8 +5,9 @@ import { MotionConfig, motion } from "framer-motion";
 import { portfolioSchema, type PortfolioData } from "@/lib/content-schema";
 import { ProfileTab, SkillsTab, ProjectsTab, ExperienceTab, Toast } from "./ContentTabs";
 import MessagesTab from "./MessagesTab";
+import SettingsTab from "./SettingsTab";
 
-const TABS = ["profile", "skills", "projects", "experience", "messages"] as const;
+const TABS = ["profile", "skills", "projects", "experience", "messages", "settings"] as const;
 type Tab = typeof TABS[number];
 
 export default function AdminEditor({ initialData, email }: { initialData: PortfolioData; email: string }) {
@@ -104,6 +105,7 @@ export default function AdminEditor({ initialData, email }: { initialData: Portf
             {tab === "projects" && "Add, edit, or reorder your portfolio projects."}
             {tab === "experience" && "Manage your work history. Use ↑↓ to reorder."}
             {tab === "messages" && "Read and manage messages sent through your portfolio."}
+            {tab === "settings" && "Manage your sign-in email and password."}
           </p>
         </div>
         {error && <div role="alert" className="border p-4 mb-6 font-code text-xs break-words" style={{ color: "var(--coral)", borderColor: "rgba(255,77,109,0.3)" }}>{error}</div>}
@@ -115,6 +117,7 @@ export default function AdminEditor({ initialData, email }: { initialData: Portf
             {tab === "experience" && <ExperienceTab data={draft} onChange={change} />}
           </fieldset>
           {tab === "messages" && <MessagesTab />}
+          {tab === "settings" && <SettingsTab email={email} notify={setToast} />}
         </motion.div>
         {dirty && <div className="admin-save-dock fixed bottom-6 right-6 z-50"><button disabled={pending} onClick={save} className="font-code text-sm px-6 py-3 font-medium shadow-lg transition-opacity hover:opacity-90 disabled:opacity-50" style={{ background: "var(--teal)", color: "var(--bg)", boxShadow: "0 0 30px rgba(0,229,184,0.3)" }}>{pending ? "saving…" : "save changes →"}</button></div>}
       </main>

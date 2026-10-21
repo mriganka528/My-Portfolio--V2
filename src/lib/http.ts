@@ -55,6 +55,6 @@ export function apiError(error: unknown) {
   }
   if (error instanceof HttpError) return json({ error: error.message }, error.status);
   if (error instanceof z.ZodError) return json({ error: error.issues.map(issue => `${issue.path.join(".")}: ${issue.message}`).join(" ") }, 400);
-  console.error("Server request failed:", error instanceof Error ? error.name : "Unknown error");
+  console.error("Server request failed:", error instanceof Error ? error.stack || error.name : "Unknown error");
   return json({ error: "Service temporarily unavailable. Please try again later." }, 503);
 }

@@ -1,16 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { test, expect } from "@playwright/test";
 import { emptyPortfolio, type PortfolioData } from "../../src/lib/content-schema";
+import { loginThroughUi } from "./auth-helpers";
 
 test("admin authentication, publishing, conflicts, inbox, and logout", async ({ page, context }) => {
   test.skip(!process.env.E2E_DATABASE_URL || !process.env.E2E_ADMIN_EMAIL || !process.env.E2E_ADMIN_PASSWORD, "Requires a dedicated migrated test database and provisioned admin.");
   const origin = "http://127.0.0.1:3100";
   const marker = randomUUID().slice(0, 8);
-  await page.goto("/admin/login");
-  await page.getByLabel("email", { exact: true }).fill(process.env.E2E_ADMIN_EMAIL!);
-  await page.getByLabel("password", { exact: true }).fill(process.env.E2E_ADMIN_PASSWORD!);
-  await page.getByRole("button", { name: "authenticate →", exact: true }).click();
-  await expect(page).toHaveURL(/\/admin$/);
+  await loginThroughUi(page, process.env.E2E_ADMIN_EMAIL!, process.env.E2E_ADMIN_PASSWORD!);
   const session = (await context.cookies()).find(cookie => cookie.name === "portfolio_admin_session");
   expect(session?.httpOnly).toBe(true);
   expect(session?.sameSite).toBe("Strict");

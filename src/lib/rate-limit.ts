@@ -8,6 +8,12 @@ const MINUTE = 60 * 1000;
 export const RATE_LIMITS = {
   "login-address": { max: 30, windowMs: 15 * MINUTE },
   "login-email": { max: 8, windowMs: 15 * MINUTE },
+  "login-otp": { max: 20, windowMs: 15 * MINUTE },
+  "otp-resend": { max: 5, windowMs: 15 * MINUTE },
+  "forgot-address": { max: 10, windowMs: 15 * MINUTE },
+  "forgot-email": { max: 4, windowMs: 15 * MINUTE },
+  "forgot-otp": { max: 20, windowMs: 15 * MINUTE },
+  "admin-settings": { max: 15, windowMs: 15 * MINUTE },
   "contact-address": { max: 10, windowMs: 60 * MINUTE },
   "contact-email": { max: 3, windowMs: 60 * MINUTE },
   "admin-read": { max: 120, windowMs: MINUTE },

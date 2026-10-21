@@ -23,6 +23,16 @@ export default defineConfig({
     url: "http://127.0.0.1:3100",
     timeout: 120000,
     reuseExistingServer: false,
-    env: { DATABASE_URL: process.env.E2E_DATABASE_URL ?? "", APP_URL: "http://127.0.0.1:3100", TRUST_PROXY: "false", E2E_RUN: "true" }
+    env: {
+      DATABASE_URL: process.env.E2E_DATABASE_URL ?? "",
+      APP_URL: "http://127.0.0.1:3100",
+      TRUST_PROXY: "false",
+      E2E_RUN: "true",
+      // Browser checks read the development OTP from the JSON response.
+      SMTP_HOST: "",
+      SMTP_USER: "",
+      SMTP_PASS: "",
+      RESEND_API_KEY: ""
+    }
   }
 });

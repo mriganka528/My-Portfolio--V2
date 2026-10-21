@@ -38,7 +38,24 @@ The script prompts for the admin email and a hidden password, followed by passwo
 
 You can supply an email using `npm run admin:create -- --email <your-email>`. For noninteractive provisioning, set `ADMIN_EMAIL` and `ADMIN_PASSWORD` in the process environment or local `.env`; remove the plaintext provisioning password afterward. It is not used by the application at runtime.
 
-Visit `/admin`. Unauthenticated visitors are redirected to `/admin/login`. Sign in with the account you created, enter your content, and select **save changes**. Saved content is visible on the next public page load.
+Visit `/admin`. Unauthenticated visitors are redirected to `/admin/login`. Sign in with the account you created, enter the six-digit code sent to the admin email, then edit your content and select **save changes**. Saved content is visible on the next public page load.
+
+### Admin email verification
+
+Sign-in is protected by a second factor. After the password is verified, a six-digit, single-use code is sent to the registered admin email. The same emailed-code flow protects password resets, changes to the admin email, and password changes in **Settings**.
+
+Configure SMTP for Nodemailer in `.env`:
+
+```dotenv
+SMTP_HOST="smtp.gmail.com"
+SMTP_PORT="465"
+SMTP_SECURE="true"
+SMTP_USER="your-admin-email@gmail.com"
+SMTP_PASS="your-app-password"
+EMAIL_FROM="Portfolio Admin <your-admin-email@gmail.com>"
+```
+
+For Gmail, enable 2-Step Verification and create an App Password; do not use the normal account password. Google only accepts a 16 character App Password over SMTP, and the address that owns the App Password is the one that must be used for `SMTP_USER`. `EMAIL_FROM` is optional and defaults to `SMTP_USER`. When SMTP is not configured, or when the mail server rejects the message, the development server shows the code on the verification screen and in its console. Production never bypasses verification and reports the delivery failure instead. Every successful sign-in also sends a security alert email containing the device, trusted IP address when available, and sign-in time in UTC.
 
 To rotate an existing admin's password and revoke all its sessions:
 
@@ -66,6 +83,7 @@ The migration creates the portfolio, authentication, and inbox tables without in
 - **Projects:** create, edit, delete, reorder, set accent/status, stack, and project/source links.
 - **Experience:** create, edit, delete, and reorder work history. Use **Show experience section** and save changes to show or hide the public work history section while keeping entries saved. Existing profiles start with it enabled. Apply the experience visibility migration with `npm run db:migrate` before starting the updated app.
 - **Messages:** paginated contact inbox, read/unread state, reply via email client, and delete.
+- **Settings:** change the admin sign-in email and reset the admin password. Both actions require the current password and a one-time code. Email changes send the code to the new address; password changes send it to the registered address. Other active sessions are revoked after either change.
 
 New records open with blank fields. Labels and controls are fixed UI text. No sample names, companies, projects, statistics, or personal copy are saved automatically. Marquee content falls back only to your saved title, subtitle, and location. Empty social and project URLs do not render broken links.
 
@@ -77,24 +95,35 @@ On phones, navigation keeps the original vertical sidebar style in a compact 52p
 
 ## Authentication
 
-Custom server-side authentication uses salted scrypt password hashes, random opaque session tokens, and only SHA-256 token hashes in the database. **Keep me signed in for 30 days** is checked by default on the login form. Unchecking it creates a 12-hour session. Both options use persistent cookies, so reopening the browser keeps the admin signed in until the selected expiry. The expiry is fixed from sign-in; activity does not extend it. Existing sessions retain their original expiry until the next sign-in. Logout and password rotation revoke sessions immediately. Cookies are HttpOnly and SameSite=Strict, with Secure enabled in production. Every admin API checks the database session; mutations validate the request origin and input.
+Custom server-side authentication uses salted scrypt password hashes, random opaque session tokens, and only SHA-256 token hashes in the database. Every sign-in requires a second factor: a six-digit, single-use code emailed to the admin address. Codes are stored as scrypt hashes, expire after 10 minutes, allow five incorrect attempts, and are bound to a short-lived HttpOnly challenge cookie. Password resets and **Settings** changes use the same emailed-code mechanism.
+
+**Keep me signed in for 30 days** is checked by default on the login form. Unchecking it creates a 12-hour session. Both options use persistent cookies, so reopening the browser keeps the admin signed in until the selected expiry. The expiry is fixed from sign-in; activity does not extend it. Existing sessions retain their original expiry until the next sign-in. Logout, password changes, and email changes revoke sessions immediately (the current session is kept after a Settings change). Cookies are HttpOnly and SameSite=Strict, with Secure enabled in production. Every admin API checks the database session; mutations validate the request origin and input.
+
+The forgot-password flow asks for the registered email, sends an OTP, verifies it, and then offers the new-password form. A completed reset signs the admin in and redirects to `/admin`. Unknown email addresses receive the same response and are never told whether an account exists.
+
+Every successful sign-in sends a security alert email with the device, IP address when `TRUST_PROXY=true` provides one, and the UTC time. The alert is sent after the response, so a slow mail server does not delay sign-in.
 
 Rate limits use atomic PostgreSQL counters shared between application instances and server restarts:
 
 | Action | Limit | Window |
 | --- | --- | --- |
 | Login requests | 30 per client address, 8 per email | 15 minutes |
+| Sign-in OTP verification | 20 per client address | 15 minutes |
+| Sign-in OTP resend | 5 per admin | 15 minutes |
+| Forgot-password requests | 10 per client address, 4 per email | 15 minutes |
+| Forgot-password OTP and reset | 20 per client address | 15 minutes |
+| Settings requests and OTP verification | 15 per admin | 15 minutes |
 | Contact submissions | 10 per client address, 3 per email | 1 hour |
 | Admin content and inbox reads | 120 per admin, across sessions | 1 minute |
 | Admin saves and message changes/deletions | 30 per admin, across sessions | 1 minute |
 
-Malformed login/contact requests count toward the address quota. Rejected requests return HTTP 429 with a `Retry-After` header and `retryAfterSeconds` in the response. Login and contact forms show a countdown and retain input during the wait. Admin screens show the server's retry message. Logout remains available even when an admin hits a quota. Limits are defined in `src/lib/rate-limit.ts`; session durations are defined in `src/lib/session-policy.ts`. Authentication and rate limits reuse the existing database tables.
+Malformed login/contact requests count toward the address quota. Rejected requests return HTTP 429 with a `Retry-After` header and `retryAfterSeconds` in the response. Login and contact forms show a countdown and retain input during the wait. Admin screens show the server's retry message. Logout remains available even when an admin hits a quota. Limits are defined in `src/lib/rate-limit.ts`; session durations are defined in `src/lib/session-policy.ts`; OTP expiry and attempt limits are defined in `src/lib/otp.ts`.
 
 Keep `TRUST_PROXY=false` unless your hosting proxy replaces `X-Forwarded-For` with a trusted client address. With proxy trust disabled, address rate limits use a shared bucket, plus individual email limits.
 
 ## Production
 
-Configure `DATABASE_URL` and `APP_URL` in the deployment environment. Use HTTPS for the admin session cookie. Apply migrations before starting the application.
+Configure `DATABASE_URL`, `APP_URL`, and SMTP settings in the deployment environment. Admin sign-in cannot complete without email delivery in production. Use HTTPS for the admin session cookie. Apply migrations before starting the application; the OTP migration adds the `AdminOtp` table.
 
 ```powershell
 npm run db:migrate
@@ -115,7 +144,7 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-Unit tests cover password verification, token hashing, content validation, safe links, request size limits, origin checks, and rate-limit responses. The default browser checks run an empty site on port 3100 without connecting to a database, covering the design shell, terminal, protected routes, form cooldowns, the remember choice, contact failure handling, and mobile layout. Set `E2E_BROWSER_CHANNEL=chrome` to use an installed Chrome browser instead of Playwright's bundled Chromium.
+Unit tests cover password verification, token hashing, content validation, safe links, request size limits, origin checks, and rate-limit responses. The default browser checks run an empty site on port 3100 without connecting to a database, covering the design shell, terminal, protected routes, form cooldowns, the remember choice, contact failure handling, and mobile layout. Set `E2E_BROWSER_CHANNEL=chrome` to use an installed Chrome browser instead of Playwright's bundled Chromium. Database-backed checks complete the emailed-OTP step using the development code returned when SMTP is disabled.
 
 To run database-backed browser checks, use a **dedicated empty test database**. Set `E2E_DATABASE_URL`, `E2E_ADMIN_EMAIL`, and `E2E_ADMIN_PASSWORD`, migrate that database, and provision that account before running `npm run test:e2e`. These checks create temporary test content and restore the original content afterward; never point them at your production database. Security checks also create a temporary admin and verify session persistence/expiry, logout revocation, concurrent rate limits, quota recovery, and admin endpoint coverage. They reset the shared login/contact rate-limit buckets in the test database.
 
@@ -125,7 +154,7 @@ The favicon uses the supplied teal monogram image, preserved in `public/brand/po
 
 - `src/app`: public/admin pages and HTTP APIs.
 - `src/components/portfolio`: components adapted from the supplied design.
-- `src/components/admin`: login, content editor, and inbox.
-- `src/lib`: Prisma access, content validation, authentication, rate limits, and request checks.
-- `prisma/schema.prisma` and `prisma/migrations`: PostgreSQL schema and initial migration.
+- `src/components/admin`: login and OTP flows, content editor, inbox, and security settings.
+- `src/lib`: Prisma access, content validation, authentication, OTP, email delivery, rate limits, and request checks.
+- `prisma/schema.prisma` and `prisma/migrations`: PostgreSQL schema and migrations, including emailed OTP challenges.
 - `scripts/create-admin.ts`: create accounts or rotate passwords without registration or default credentials.

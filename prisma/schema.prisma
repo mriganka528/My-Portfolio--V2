@@ -90,12 +90,13 @@ model Experience {
 }
 
 model Admin {
-  id           String    @id @default(cuid())
-  email        String    @unique
+  id           String     @id @default(cuid())
+  email        String     @unique
   passwordHash String
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
   sessions     Session[]
+  otps         AdminOtp[]
 }
 
 model Session {
@@ -107,6 +108,28 @@ model Session {
   createdAt DateTime @default(now())
 
   @@index([adminId])
+  @@index([expiresAt])
+}
+
+// Short-lived, single-use emailed verification codes. Only hashes of the
+// challenge token and code are stored; a verified reset row acts as the
+// short-lived grant used to finish a password reset.
+model AdminOtp {
+  id                  String    @id @default(cuid())
+  tokenHash           String    @unique
+  adminId             String
+  admin               Admin     @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  email               String
+  purpose             String
+  codeHash            String
+  attempts            Int       @default(0)
+  rememberMe          Boolean   @default(false)
+  pendingPasswordHash String?
+  verifiedAt          DateTime?
+  expiresAt           DateTime
+  createdAt           DateTime  @default(now())
+
+  @@index([adminId, purpose])
   @@index([expiresAt])
 }
 
