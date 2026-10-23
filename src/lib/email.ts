@@ -59,6 +59,19 @@ function escaped(value: string) {
   }[character] ?? character));
 }
 
+function istTimestamp(date: Date) {
+  const formatted = new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true
+  }).format(date).replace(/\b(am|pm)\b/i, value => value.toUpperCase());
+  return `${formatted} IST`;
+}
+
 let credentialsChecked = false;
 // Google only accepts a 16 character App Password over SMTP. The regular
 // account password, a password with spaces, or a revoked App Password are the
@@ -117,7 +130,14 @@ function messageFor(code: string, purpose: OtpPurpose, minutes: number) {
   return { subject: copy.subject, text, html };
 }
 
-async function sendWithResend(input: { to: string; subject: string; text: string; html: string }) {
+type MailMessage = { to: string; subject: string; text: string; html: string; replyTo?: string };
+
+function replyToAddress(input: MailMessage) {
+  return input.replyTo?.trim() || process.env.EMAIL_REPLY_TO?.trim() || "";
+}
+
+async function sendWithResend(input: MailMessage) {
+  const replyTo = replyToAddress(input);
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${resendKey()}`, "Content-Type": "application/json" },
@@ -127,7 +147,7 @@ async function sendWithResend(input: { to: string; subject: string; text: string
       subject: input.subject,
       text: input.text,
       html: input.html,
-      ...(process.env.EMAIL_REPLY_TO?.trim() ? { reply_to: process.env.EMAIL_REPLY_TO.trim() } : {})
+      ...(replyTo ? { reply_to: replyTo } : {})
     }),
     signal: AbortSignal.timeout(10_000)
   });
@@ -137,11 +157,12 @@ async function sendWithResend(input: { to: string; subject: string; text: string
   }
 }
 
-async function sendWithSmtp(input: { to: string; subject: string; text: string; html: string }) {
+async function sendWithSmtp(input: MailMessage) {
   const host = smtpHost();
   const port = Number(process.env.SMTP_PORT || 587);
   const user = process.env.SMTP_USER?.trim();
   const pass = process.env.SMTP_PASS?.trim();
+  const replyTo = replyToAddress(input);
   warnAboutSuspiciousCredentials();
   let transport: ReturnType<typeof nodemailer.createTransport> | undefined;
   try {
@@ -160,7 +181,7 @@ async function sendWithSmtp(input: { to: string; subject: string; text: string; 
       subject: input.subject,
       text: input.text,
       html: input.html,
-      ...(process.env.EMAIL_REPLY_TO?.trim() ? { replyTo: process.env.EMAIL_REPLY_TO.trim() } : {})
+      ...(replyTo ? { replyTo } : {})
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
@@ -174,7 +195,7 @@ async function sendWithSmtp(input: { to: string; subject: string; text: string; 
   }
 }
 
-async function deliver(input: { to: string; subject: string; text: string; html: string }) {
+async function deliver(input: MailMessage) {
   if (smtpHost()) await sendWithSmtp(input);
   else await sendWithResend(input);
 }
@@ -245,6 +266,55 @@ function loginAlertMessage(input: { device: string; ip: string; when: string; me
   return { subject: "Security alert: new admin sign-in", text, html };
 }
 
+function contactNotificationMessage(input: { name: string; email: string; message: string; submittedAt: Date }) {
+  const appUrl = process.env.APP_URL?.trim().replace(/\/+$/, "") || "";
+  const adminUrl = appUrl ? `${appUrl}/admin` : "the admin panel";
+  const received = istTimestamp(input.submittedAt);
+  const sender = input.name.replace(/[\r\n]+/g, " ").trim().slice(0, 80) || "a visitor";
+  const text = [
+    "New contact message",
+    "",
+    `Name: ${input.name}`,
+    `Email: ${input.email}`,
+    `Received: ${received}`,
+    "",
+    input.message,
+    "",
+    "Reply to this email to respond directly to the sender.",
+    `Open the admin inbox: ${adminUrl}`
+  ].join("\n");
+  const html = `<!doctype html>
+<html lang="en">
+  <body style="margin:0;padding:0;background:#04080d;color:#dce8f2;font-family:Arial,Helvetica,sans-serif;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#04080d;padding:32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;border:1px solid rgba(0,229,184,0.2);background:#06101a;">
+            <tr>
+              <td style="padding:28px;">
+                <p style="margin:0 0 18px;color:#00e5b8;font-size:13px;letter-spacing:0.18em;text-transform:uppercase;">Portfolio Admin</p>
+                <h1 style="margin:0 0 12px;color:#dce8f2;font-size:22px;line-height:1.3;">New contact message</h1>
+                <p style="margin:0 0 22px;color:#7a9ab5;font-size:14px;line-height:1.7;">Someone sent a message through your portfolio contact form.</p>
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 22px;border:1px solid rgba(0,229,184,0.18);background:rgba(0,229,184,0.04);">
+                  <tr><td style="padding:12px 14px;color:#3d5a72;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;">Name</td><td style="padding:12px 14px;color:#dce8f2;font-size:13px;text-align:right;">${escaped(input.name)}</td></tr>
+                  <tr><td style="padding:12px 14px;color:#3d5a72;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;">Email</td><td style="padding:12px 14px;color:#00e5b8;font-size:13px;text-align:right;"><a href="mailto:${escaped(input.email)}" style="color:#00e5b8;text-decoration:none;">${escaped(input.email)}</a></td></tr>
+                  <tr><td style="padding:12px 14px;color:#3d5a72;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;">Received</td><td style="padding:12px 14px;color:#dce8f2;font-size:13px;text-align:right;">${escaped(received)}</td></tr>
+                </table>
+                <p style="margin:0 0 8px;color:#3d5a72;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;">Message</p>
+                <div style="margin:0 0 24px;padding:18px;border-left:2px solid #00e5b8;background:rgba(0,229,184,0.04);color:#dce8f2;font-size:14px;line-height:1.7;">${escaped(input.message).replace(/\r?\n/g, "<br>")}</div>
+                <p style="margin:0 0 18px;color:#7a9ab5;font-size:13px;line-height:1.7;">Reply to this email to respond directly to the sender.</p>
+                <p style="margin:0;"><a href="${escaped(adminUrl)}" style="display:inline-block;padding:12px 20px;background:#00e5b8;color:#04080d;font-size:13px;font-weight:bold;text-decoration:none;">Open admin inbox</a></p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+  return { subject: `New portfolio message from ${sender}`, text, html };
+}
+
 export async function sendOtpEmail(input: { to: string; code: string; purpose: OtpPurpose; minutes: number }) {
   if (!emailDeliveryConfigured()) {
     // Local development may run before email credentials are configured. The
@@ -284,8 +354,22 @@ export async function sendLoginAlertEmail(input: {
   const message = loginAlertMessage({
     device: describeDevice(input.userAgent),
     ip: input.ip && input.ip !== "shared" ? input.ip : "Not available",
-    when: `${new Date().toISOString().replace("T", " ").slice(0, 16)} UTC`,
+    when: istTimestamp(new Date()),
     method: input.method ?? "password"
   });
   await deliver({ to: input.to, ...message });
+}
+
+export async function sendContactNotificationEmail(input: {
+  to: string;
+  name: string;
+  email: string;
+  message: string;
+  submittedAt: Date;
+}) {
+  if (!emailDeliveryConfigured()) {
+    if (process.env.NODE_ENV !== "production") console.info(`[contact] message notification for ${input.to} (email delivery not configured)`);
+    return;
+  }
+  await deliver({ to: input.to, replyTo: input.email, ...contactNotificationMessage(input) });
 }

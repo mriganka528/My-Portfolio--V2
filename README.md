@@ -46,7 +46,7 @@ Sign-in is protected by a second factor. After the password is verified, a six-d
 
 
 
-For Gmail, enable 2-Step Verification and create an App Password; do not use the normal account password. Google only accepts a 16 character App Password over SMTP, and the address that owns the App Password is the one that must be used for `SMTP_USER`. `EMAIL_FROM` is optional and defaults to `SMTP_USER`. When SMTP is not configured, or when the mail server rejects the message, the development server shows the code on the verification screen and in its console. Production never bypasses verification and reports the delivery failure instead. Every successful sign-in also sends a security alert email containing the device, trusted IP address when available, and sign-in time in UTC.
+For Gmail, enable 2-Step Verification and create an App Password; do not use the normal account password. Google only accepts a 16 character App Password over SMTP, and the address that owns the App Password is the one that must be used for `SMTP_USER`. `EMAIL_FROM` is optional and defaults to `SMTP_USER`. When SMTP is not configured, or when the mail server rejects the message, the development server shows the code on the verification screen and in its console. Production never bypasses verification and reports the delivery failure instead. Every successful sign-in also sends a security alert email containing the device, trusted IP address when available, and sign-in time in IST.
 
 To rotate an existing admin's password and revoke all its sessions:
 
@@ -73,14 +73,14 @@ The migration creates the portfolio, authentication, and inbox tables without in
 - **Skills:** create, edit, delete, reorder, set proficiency and Simple Icons slug. Icons use `cdn.simpleicons.org` and fall back to initials.
 - **Projects:** create, edit, delete, reorder, set accent/status, stack, and project/source links.
 - **Experience:** create, edit, delete, and reorder work history. Use **Show experience section** and save changes to show or hide the public work history section while keeping entries saved. Existing profiles start with it enabled. Apply the experience visibility migration with `npm run db:migrate` before starting the updated app.
-- **Messages:** paginated contact inbox, read/unread state, reply via email client, and delete.
+- **Messages:** paginated contact inbox, read/unread state, reply via email client, delete, and email notifications for new contact submissions.
 - **Settings:** change the admin sign-in email and reset the admin password. Both actions require the current password and a one-time code. Email changes send the code to the new address; password changes send it to the registered address. Other active sessions are revoked after either change.
 
 New records open with blank fields. Labels and controls are fixed UI text. No sample names, companies, projects, statistics, or personal copy are saved automatically. Marquee content falls back only to your saved title, subtitle, and location. Empty social and project URLs do not render broken links.
 
 The header **reset** button discards unsaved edits and restores the last saved version. It never inserts demo content. Changes to the portfolio are saved in one transaction. Concurrent edits return a conflict instead of silently overwriting another save. Refresh to load the latest version if a conflict occurs; copy any unsaved work first.
 
-The contact form stores messages in PostgreSQL and reports success only after insertion. No email delivery service is needed; messages are read in the admin inbox. It does not send notification emails.
+The contact form stores messages in PostgreSQL and reports success only after insertion. When email delivery is configured, each new message is also emailed to every registered admin address after the response is sent. The sender's address is set as **Reply-To**, so you can reply directly from your mail client. A mail failure is logged and does not lose the message from the admin inbox.
 
 On phones, navigation keeps the original vertical sidebar style in a compact 52px rail, with larger touch targets, a highlighted active section, and a vertical scroll indicator. Content fits alongside the rail without horizontal overflow. Scrolling uses the browser's native smooth behavior and respects reduced-motion preferences. Touch devices skip particle rendering, fixed decorative overlays, and automatic reveal animations. The marquee keeps its continuous horizontal scrolling on mobile and desktop, with a static version for reduced-motion preferences. Desktop decoration loads only on eligible devices; scroll progress updates do not trigger React renders. The viewport allows zooming in and returning to the initial scale, while preventing zooming out below the device-width layout.
 
@@ -92,7 +92,7 @@ Custom server-side authentication uses salted scrypt password hashes, random opa
 
 The forgot-password flow asks for the registered email, sends an OTP, verifies it, and then offers the new-password form. A completed reset signs the admin in and redirects to `/admin`. Unknown email addresses receive the same response and are never told whether an account exists.
 
-Every successful sign-in sends a security alert email with the device, IP address when `TRUST_PROXY=true` provides one, and the UTC time. The alert is sent after the response, so a slow mail server does not delay sign-in.
+Every successful sign-in sends a security alert email with the device, IP address when `TRUST_PROXY=true` provides one, and the time in IST. The alert is sent after the response, so a slow mail server does not delay sign-in.
 
 Rate limits use atomic PostgreSQL counters shared between application instances and server restarts:
 
@@ -114,7 +114,7 @@ Keep `TRUST_PROXY=false` unless your hosting proxy replaces `X-Forwarded-For` wi
 
 ## Production
 
-Configure `DATABASE_URL`, `APP_URL`, and SMTP settings in the deployment environment. Admin sign-in cannot complete without email delivery in production. Use HTTPS for the admin session cookie. Apply migrations before starting the application; the OTP migration adds the `AdminOtp` table.
+Configure `DATABASE_URL`, `APP_URL`, and SMTP settings in the deployment environment. Admin sign-in cannot complete without email delivery in production, and contact notifications use the same SMTP or Resend configuration. Use HTTPS for the admin session cookie. Apply migrations before starting the application; the OTP migration adds the `AdminOtp` table.
 
 ```powershell
 npm run db:migrate
