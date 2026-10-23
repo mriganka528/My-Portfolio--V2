@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { emptyPortfolio, portfolioSchema, contactSchema, skillSchema, projectSchema } from "../src/lib/content-schema";
 import { externalUrl, socialUrl } from "../src/lib/links";
+import { projectNumber, normalizeProjectIndexes } from "../src/lib/project-index";
 
 test("initial portfolio contains no seeded personal content", () => {
   const data = portfolioSchema.parse(emptyPortfolio());
@@ -43,6 +44,14 @@ test("project links and accent values are validated", () => {
   assert.equal(projectSchema.safeParse(project).success, true);
   assert.equal(projectSchema.safeParse({ ...project, url: "data:text/html,invalid" }).success, false);
   assert.equal(projectSchema.safeParse({ ...project, color: "url(https://example.org)" }).success, false);
+});
+
+test("project numbers follow list order automatically", () => {
+  const project = (id: string, index: string) => ({ id, name: id, index, category: "", description: "", stack: [], stars: "", year: "", status: "" as const, color: "var(--teal)", url: "", sourceUrl: "" });
+  const projects = normalizeProjectIndexes([project("first", "99"), project("second", "01"), project("third", "")]);
+  assert.deepEqual(projects.map(item => item.index), ["01", "02", "03"]);
+  assert.equal(projectNumber(9), "10");
+  assert.equal(projectNumber(99), "100");
 });
 
 test("contact input must be meaningful and bounded", () => {

@@ -1,7 +1,8 @@
 "use client";
-import { useState, useEffect, useId } from "react";
+import { useState, useEffect, useId, useRef, type DragEvent } from "react";
 import type { PortfolioData, Skill, Project, Experience } from "@/lib/content-schema";
 import { COLOR_OPTIONS, STATUS_OPTIONS, CATEGORY_OPTIONS as CAT_OPTIONS } from "@/lib/content-schema";
+import { projectNumber, normalizeProjectIndexes } from "@/lib/project-index";
 const inputCls = "w-full bg-transparent border px-3 py-2.5 font-code text-xs outline-none transition-colors focus:border-teal-400/40";
 const inputStyle = { borderColor: "rgba(0,229,184,0.15)", color: "var(--text)", caretColor: "var(--teal)" };
 const labelCls = "block font-code text-[9px] tracking-widest uppercase mb-1.5";
@@ -30,12 +31,12 @@ function moved<T>(items: T[], index: number, direction: -1 | 1) {
   return next;
 }
 
-function Field({ label, value, onChange, type = "text", placeholder = "" }: { label: string; value: string; onChange: (v: string) => void; type?: string; placeholder?: string }) {
+function Field({ label, value, onChange, type = "text", placeholder = "", autoFocus = false }: { label: string; value: string; onChange: (v: string) => void; type?: string; placeholder?: string; autoFocus?: boolean }) {
   const id = useId();
   return (
     <div>
       <label htmlFor={id} className={labelCls} style={labelStyle}>{label}</label>
-      <input id={id} type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
+      <input id={id} type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} autoFocus={autoFocus}
         className={inputCls} style={inputStyle} />
     </div>
   );
@@ -238,24 +239,72 @@ export function SkillsTab({ data, onChange }: { data: PortfolioData; onChange: (
 // ── Tab: Projects ─────────────────────────────────────────────────────────────
 
 
-function ProjectRow({ proj, onChange, onDelete }: { proj: Project; onChange: (p: Project) => void; onDelete: () => void }) {
-  const [open, setOpen] = useState(!proj.name);
+type DropEdge = "before" | "after";
+
+function ProjectRow({ proj, position, autoFocus, isDragging, dropEdge, onChange, onDelete, onDragStart, onDragEnd, onDragOver, onDrop }: {
+  proj: Project;
+  position: number;
+  autoFocus: boolean;
+  isDragging: boolean;
+  dropEdge: DropEdge | null;
+  onChange: (p: Project) => void;
+  onDelete: () => void;
+  onDragStart: () => void;
+  onDragEnd: () => void;
+  onDragOver: (edge: DropEdge) => void;
+  onDrop: (edge: DropEdge) => void;
+}) {
+  const [open, setOpen] = useState(!proj.name || autoFocus);
+  const rowRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!autoFocus) return;
+    rowRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [autoFocus]);
+
+  const dropEdgeAt = (event: DragEvent<HTMLDivElement>): DropEdge => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    return event.clientY < rect.top + rect.height / 2 ? "before" : "after";
+  };
+
   return (
-    <div className="border" style={{ borderColor: "rgba(0,229,184,0.1)" }}>
-      <button type="button" aria-expanded={open} className="w-full text-left flex items-center gap-4 px-4 py-3" onClick={() => setOpen(o => !o)}>
-        <span className="font-head font-bold text-sm w-8" style={{ color: "var(--dim)" }}>{proj.index}</span>
-        <span className="font-code text-xs flex-1" style={{ color: "var(--text)" }}>{proj.name || "Untitled project"}</span>
-        <span className="font-code text-[9px] px-2 py-0.5 border" style={{ borderColor: "rgba(0,229,184,0.2)", color: "var(--dim)" }}>{proj.status}</span>
-        <span className="font-code text-[10px]" style={{ color: "var(--dim)" }}>{open ? "▲" : "▼"}</span>
-      </button>
+    <div
+      ref={rowRef}
+      className="border scroll-mt-20 relative transition-opacity"
+      style={{ borderColor: "rgba(0,229,184,0.1)", opacity: isDragging ? 0.45 : 1 }}
+      onDragOver={event => { event.preventDefault(); event.dataTransfer.dropEffect = "move"; onDragOver(dropEdgeAt(event)); }}
+      onDrop={event => { event.preventDefault(); onDrop(dropEdgeAt(event)); }}
+    >
+      {dropEdge && <div aria-hidden className="absolute inset-x-0 z-10 pointer-events-none" style={{ [dropEdge === "before" ? "top" : "bottom"]: -2, height: 2, background: "var(--teal)", boxShadow: "0 0 8px rgba(0,229,184,0.7)" }} />}
+      <div className="flex items-stretch">
+        <button
+          type="button"
+          draggable
+          aria-label={`Drag ${proj.name || "project"} to reorder`}
+          title="Drag to reorder"
+          className="shrink-0 w-9 flex items-center justify-center font-code text-sm cursor-grab active:cursor-grabbing"
+          style={{ color: dropEdge ? "var(--teal)" : "var(--dim)" }}
+          onDragStart={event => {
+            event.dataTransfer.effectAllowed = "move";
+            event.dataTransfer.setData("text/plain", proj.id);
+            const header = rowRef.current?.firstElementChild as HTMLElement | null;
+            if (header) event.dataTransfer.setDragImage(header, 24, 20);
+            onDragStart();
+          }}
+          onDragEnd={onDragEnd}
+        >⠿</button>
+        <button type="button" aria-expanded={open} className="flex-1 min-w-0 text-left flex items-center gap-4 pr-4 py-3" onClick={() => setOpen(o => !o)}>
+          <span className="font-head font-bold text-sm w-8" style={{ color: "var(--dim)" }}>{projectNumber(position)}</span>
+          <span className="font-code text-xs flex-1" style={{ color: "var(--text)" }}>{proj.name || "Untitled project"}</span>
+          <span className="font-code text-[9px] px-2 py-0.5 border" style={{ borderColor: "rgba(0,229,184,0.2)", color: "var(--dim)" }}>{proj.status}</span>
+          <span className="font-code text-[10px]" style={{ color: "var(--dim)" }}>{open ? "▲" : "▼"}</span>
+        </button>
+      </div>
       {open && (
         <div className="border-t px-4 py-4 space-y-4" style={{ borderColor: "rgba(0,229,184,0.08)" }}>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            <Field label="Index" value={proj.index} onChange={v => onChange({ ...proj, index: v })} />
-            <Field label="Name" value={proj.name} onChange={v => onChange({ ...proj, name: v })} />
+            <Field label="Name" value={proj.name} onChange={v => onChange({ ...proj, name: v })} autoFocus={autoFocus} />
             <Field label="Category" value={proj.category} onChange={v => onChange({ ...proj, category: v })} />
-            <Field label="Stars" value={proj.stars} onChange={v => onChange({ ...proj, stars: v })} />
-            <Field label="Year" value={proj.year} onChange={v => onChange({ ...proj, year: v })} />
             <div>
               <label className={labelCls} style={labelStyle}>Status</label>
               <select aria-label="Status" value={proj.status} onChange={e => onChange({ ...proj, status: e.target.value as Project["status"] })}
@@ -264,6 +313,8 @@ function ProjectRow({ proj, onChange, onDelete }: { proj: Project; onChange: (p:
                 {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
+            <Field label="Stars" value={proj.stars} onChange={v => onChange({ ...proj, stars: v })} />
+            <Field label="Year" value={proj.year} onChange={v => onChange({ ...proj, year: v })} />
           </div>
           <TextareaField label="Description" value={proj.description} onChange={v => onChange({ ...proj, description: v })} rows={3} />
           <ListField label="Tech stack (comma-separated)" value={proj.stack} onChange={stack => onChange({ ...proj, stack })} />
@@ -293,27 +344,79 @@ function ProjectRow({ proj, onChange, onDelete }: { proj: Project; onChange: (p:
 }
 
 export function ProjectsTab({ data, onChange }: { data: PortfolioData; onChange: (d: PortfolioData) => void }) {
+  const [newProjectId, setNewProjectId] = useState<string | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<{ id: string; edge: DropEdge } | null>(null);
+
   const add = () => {
-    const p: Project = { id: crypto.randomUUID(), index: "", name: "", category: "", description: "", stack: [], stars: "", year: "", status: "", color: "var(--teal)", url: "", sourceUrl: "" };
-    onChange({ ...data, projects: [...data.projects, p] });
+    const p: Project = { id: crypto.randomUUID(), index: projectNumber(0), name: "", category: "", description: "", stack: [], stars: "", year: "", status: "", color: "var(--teal)", url: "", sourceUrl: "" };
+    setNewProjectId(p.id);
+    onChange({ ...data, projects: normalizeProjectIndexes([p, ...data.projects]) });
   };
-  const update = (id: string, p: Project) => onChange({ ...data, projects: data.projects.map(x => x.id === id ? p : x) });
-  const del = (id: string) => onChange({ ...data, projects: data.projects.filter(x => x.id !== id) });
+  const update = (id: string, p: Project) => onChange({ ...data, projects: normalizeProjectIndexes(data.projects.map(x => x.id === id ? p : x)) });
+  const del = (id: string) => onChange({ ...data, projects: normalizeProjectIndexes(data.projects.filter(x => x.id !== id)) });
+  const move = (index: number, direction: -1 | 1) => onChange({ ...data, projects: normalizeProjectIndexes(moved(data.projects, index, direction)) });
+
+  const reorder = (draggedId: string, targetId: string, edge: DropEdge) => {
+    if (draggedId === targetId) return;
+    const next = [...data.projects];
+    const fromIndex = next.findIndex(p => p.id === draggedId);
+    if (fromIndex === -1) return;
+    const [project] = next.splice(fromIndex, 1);
+    const targetIndex = next.findIndex(p => p.id === targetId);
+    if (targetIndex === -1) return;
+    next.splice(edge === "after" ? targetIndex + 1 : targetIndex, 0, project);
+    onChange({ ...data, projects: normalizeProjectIndexes(next) });
+  };
+
+  const handleDragOver = (id: string, edge: DropEdge) => {
+    if (!draggingId || draggingId === id) {
+      setDropTarget(null);
+      return;
+    }
+    setDropTarget(current => current?.id === id && current.edge === edge ? current : { id, edge });
+  };
+
+  const handleDrop = (id: string, edge: DropEdge) => {
+    if (draggingId) reorder(draggingId, id, edge);
+    setDraggingId(null);
+    setDropTarget(null);
+  };
+
+  const endDrag = () => {
+    setDraggingId(null);
+    setDropTarget(null);
+  };
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between mb-4">
-        <p className="font-code text-xs" style={{ color: "var(--dim)" }}>{data.projects.length} projects</p>
+        <p className="font-code text-xs" style={{ color: "var(--dim)" }}>{data.projects.length} projects · newest first</p>
         <button onClick={add} className="font-code text-[10px] px-4 py-2 border transition-colors hover:bg-teal-400/5"
           style={{ borderColor: "rgba(0,229,184,0.3)", color: "var(--teal)" }}>+ add project</button>
       </div>
       {data.projects.map((p, index) => (
         <div key={p.id}>
-          <MoveControls index={index} total={data.projects.length} onMove={direction => onChange({ ...data, projects: moved(data.projects, index, direction) })} />
-          <ProjectRow proj={p} onChange={np => update(p.id, np)} onDelete={() => del(p.id)} />
+          <MoveControls index={index} total={data.projects.length} onMove={direction => move(index, direction)} />
+          <ProjectRow
+            proj={p}
+            position={index}
+            autoFocus={p.id === newProjectId}
+            isDragging={p.id === draggingId}
+            dropEdge={dropTarget?.id === p.id ? dropTarget.edge : null}
+            onChange={np => update(p.id, np)}
+            onDelete={() => del(p.id)}
+            onDragStart={() => setDraggingId(p.id)}
+            onDragEnd={endDrag}
+            onDragOver={edge => handleDragOver(p.id, edge)}
+            onDrop={edge => handleDrop(p.id, edge)}
+          />
         </div>
       ))}
       {!data.projects.length && <p className="empty-state">No projects yet. Add your first project to get started.</p>}
+      <p className="font-code text-[9px] pt-2" style={{ color: "var(--dim)" }}>
+        Project numbers are assigned automatically from the list order. Drag the ⠿ handle or use ↑↓ to reorder.
+      </p>
     </div>
   );
 }

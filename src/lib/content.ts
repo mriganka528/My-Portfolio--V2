@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { getDb } from "./db";
 import { emptyPortfolio, portfolioSchema, type PortfolioData } from "./content-schema";
+import { normalizeProjectIndexes } from "./project-index";
 
 export class ContentConflictError extends Error {}
 
@@ -21,6 +22,7 @@ export const readPortfolio = cache(async (): Promise<PortfolioData> => {
 
 export async function writePortfolio(data: PortfolioData) {
   const db = getDb();
+  const projects = normalizeProjectIndexes(data.projects);
   return db.$transaction(async tx => {
     // Establish the singleton without overwriting published content.
     await tx.profile.upsert({ where: { id: "main" }, create: { id: "main" }, update: {} });
@@ -33,8 +35,8 @@ export async function writePortfolio(data: PortfolioData) {
     await tx.project.deleteMany({ where: { profileId: "main" } });
     await tx.experience.deleteMany({ where: { profileId: "main" } });
     if (data.skills.length) await tx.skill.createMany({ data: data.skills.map((item, sortOrder) => ({ ...item, sortOrder, profileId: "main" })) });
-    if (data.projects.length) await tx.project.createMany({ data: data.projects.map((item, sortOrder) => ({ ...item, sortOrder, profileId: "main" })) });
+    if (projects.length) await tx.project.createMany({ data: projects.map((item, sortOrder) => ({ ...item, sortOrder, profileId: "main" })) });
     if (data.experience.length) await tx.experience.createMany({ data: data.experience.map((item, sortOrder) => ({ ...item, sortOrder, profileId: "main" })) });
-    return { ...data, version: data.version + 1 };
+    return { ...data, projects, version: data.version + 1 };
   });
 }

@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { usePortfolioData } from "./provider";
 import { externalUrl, accentColor } from "@/lib/links";
+import { projectNumber } from "@/lib/project-index";
 
 export default function Projects() {
   const { data } = usePortfolioData();
@@ -21,7 +22,7 @@ export default function Projects() {
         </div>
 
         <div>
-          {data.projects.map((p) => {
+          {data.projects.map((p, index) => {
             const isOpen = open === p.id;
             const col = accentColor(p.color);
             return (
@@ -31,7 +32,7 @@ export default function Projects() {
                     className="font-head font-bold shrink-0 w-14 text-right transition-colors duration-200"
                     style={{ fontSize: "clamp(1.6rem,3vw,2.8rem)", color: isOpen ? col : "rgba(255,255,255,0.06)" }}
                   >
-                    {p.index}
+                    {projectNumber(index)}
                   </span>
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-baseline gap-4">
