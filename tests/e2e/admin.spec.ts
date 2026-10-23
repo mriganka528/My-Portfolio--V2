@@ -58,18 +58,27 @@ test("admin authentication, publishing, conflicts, inbox, and logout", async ({ 
     await expect(page.getByText(`Project description ${marker}`)).toBeVisible();
     await expect(page.getByRole("link", { name: "view project" })).toHaveAttribute("href", "https://example.org/project");
 
+    const unreadBefore = (await (await context.request.get("/api/admin/messages/unread")).json()).unread;
     await page.getByLabel("name", { exact: true }).fill(`Test ${marker}`);
     await page.getByLabel("email", { exact: true }).fill(`${marker}@example.org`);
     await page.getByLabel("message", { exact: true }).fill(`Automated contact verification ${marker}`);
     await page.getByRole("button", { name: "send message →", exact: true }).press("Enter");
     await expect(page.getByText("SENT", { exact: true })).toBeVisible();
+    const unreadAfter = (await (await context.request.get("/api/admin/messages/unread")).json()).unread;
+    expect(unreadAfter).toBe(unreadBefore + 1);
     const inbox = await (await context.request.get("/api/admin/messages")).json();
     messageId = inbox.messages.find((message: { email: string }) => message.email === `${marker}@example.org`)?.id;
     expect(messageId).toBeTruthy();
     await page.goto("/admin");
-    await page.getByRole("navigation", { name: "Content management" }).getByRole("button", { name: "messages" }).click();
+    await expect(page.getByRole("button", { name: new RegExp(`${unreadAfter} unread message`) })).toBeVisible();
+    await page.getByRole("button", { name: new RegExp(`${unreadAfter} unread message`) }).click();
+    await expect(page.getByRole("heading", { name: "messages", exact: true })).toBeVisible();
     await expect(page.getByText(`Automated contact verification ${marker}`)).toBeVisible();
-    expect((await context.request.patch(`/api/admin/messages/${messageId}`, { headers: { origin }, data: { read: true } })).ok()).toBe(true);
+    await page.locator("article").filter({ hasText: `Automated contact verification ${marker}` }).getByRole("button", { name: "mark read", exact: true }).click();
+    const unreadButtonAfterRead = unreadBefore === 0
+      ? page.getByRole("button", { name: "No unread messages. Open messages." })
+      : page.getByRole("button", { name: new RegExp(`${unreadBefore} unread message`) });
+    await expect(unreadButtonAfterRead).toBeVisible();
   } finally {
     if (messageId) await context.request.delete(`/api/admin/messages/${messageId}`, { headers: { origin } });
     const current: PortfolioData = await (await context.request.get("/api/admin/content")).json();

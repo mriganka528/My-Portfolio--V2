@@ -11,7 +11,7 @@ async function fetchInbox(page: number, signal: AbortSignal): Promise<Inbox> {
   return data;
 }
 
-export default function MessagesTab() {
+export default function MessagesTab({ onUnreadChange }: { onUnreadChange?: (unread: number) => void }) {
   const [inbox, setInbox] = useState<Inbox | null>(null);
   const [page, setPage] = useState(1);
   const [error, setError] = useState("");
@@ -25,6 +25,7 @@ export default function MessagesTab() {
       data => {
         if (controller.signal.aborted) return;
         setInbox(data); setError("");
+        onUnreadChange?.(data.unread);
         if (data.pages < page) setPage(data.pages);
         else setLoading(false);
       },
@@ -35,7 +36,7 @@ export default function MessagesTab() {
       }
     );
     return () => controller.abort();
-  }, [page, revision]);
+  }, [page, revision, onUnreadChange]);
 
   function refresh() {
     setLoading(true);
@@ -70,9 +71,12 @@ export default function MessagesTab() {
       <button disabled={loading} onClick={refresh} className={buttonClass}>refresh</button>
     </div>
     {error && <p role="alert" className="font-code text-xs text-[var(--coral)]">{error}</p>}
-    {inbox?.messages.map(message => <article key={message.id} className="border p-5 space-y-4" style={{ borderColor: message.read ? "rgba(0,229,184,0.1)" : "rgba(0,229,184,0.3)", background: "rgba(6,16,26,0.5)" }}>
+    {inbox?.messages.map(message => <article key={message.id} className="border p-5 space-y-4" style={{ borderColor: message.read ? "rgba(0,229,184,0.1)" : "rgba(0,229,184,0.5)", background: message.read ? "rgba(6,16,26,0.5)" : "rgba(0,229,184,0.08)", boxShadow: message.read ? "none" : "0 0 24px rgba(0,229,184,0.08)" }}>
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div><h2 className="font-head font-bold">{message.name}</h2><a className="font-code text-[10px] text-[var(--teal)] break-all" href={`mailto:${message.email}`}>{message.email}</a></div>
+        <div>
+          <div className="flex items-center gap-2"><h2 className="font-head font-bold">{message.name}</h2>{!message.read && <span className="font-code text-[9px] uppercase tracking-widest px-2 py-0.5" style={{ color: "var(--bg)", background: "var(--teal)" }}>unread</span>}</div>
+          <a className="font-code text-[10px] text-[var(--teal)] break-all" href={`mailto:${message.email}`}>{message.email}</a>
+        </div>
         <time className="font-code text-[9px] text-[var(--dim)]" dateTime={message.createdAt}>{new Date(message.createdAt).toLocaleString()}</time>
       </div>
       <p className="text-sm whitespace-pre-wrap break-words leading-relaxed" style={{ color: "#7a9ab5" }}>{message.message}</p>

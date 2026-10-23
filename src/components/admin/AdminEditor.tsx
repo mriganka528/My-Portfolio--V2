@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MotionConfig, motion } from "framer-motion";
 import { portfolioSchema, type PortfolioData } from "@/lib/content-schema";
@@ -20,7 +20,53 @@ export default function AdminEditor({ initialData, email }: { initialData: Portf
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const [editorKey, setEditorKey] = useState(0);
+  const [unreadMessages, setUnreadMessages] = useState(0);
+  const unreadRequest = useRef<AbortController | null>(null);
   const closeToast = useCallback(() => setToast(""), []);
+
+  const updateUnreadMessages = useCallback((unread: number) => {
+    if (!Number.isSafeInteger(unread) || unread < 0) return;
+    unreadRequest.current?.abort();
+    unreadRequest.current = null;
+    setUnreadMessages(unread);
+  }, []);
+
+  const refreshUnread = useCallback(async () => {
+    unreadRequest.current?.abort();
+    const controller = new AbortController();
+    unreadRequest.current = controller;
+    try {
+      const response = await fetch("/api/admin/messages/unread", { cache: "no-store", signal: controller.signal });
+      if (!response.ok) return;
+      const data = await response.json();
+      if (unreadRequest.current !== controller || controller.signal.aborted) return;
+      updateUnreadMessages(data.unread);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      /* Keep the last known count during transient network errors. */
+    } finally {
+      if (unreadRequest.current === controller) unreadRequest.current = null;
+    }
+  }, [updateUnreadMessages]);
+
+  useEffect(() => {
+    const initialRefresh = window.setTimeout(() => void refreshUnread(), 0);
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void refreshUnread();
+    };
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") void refreshUnread();
+    }, 30_000);
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.clearTimeout(initialRefresh);
+      unreadRequest.current?.abort();
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [refreshUnread]);
 
   function showError(message: string) {
     setError(message);
@@ -78,6 +124,31 @@ export default function AdminEditor({ initialData, email }: { initialData: Portf
         {dirty && <span className="font-code text-[9px] px-2 py-0.5" style={{ background: "rgba(255,199,0,0.12)", color: "#f5c400", border: "1px solid rgba(245,196,0,0.3)" }}>unsaved changes</span>}
       </div>
       <div className="admin-header-actions flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => setTab("messages")}
+          aria-label={unreadMessages > 0 ? `${unreadMessages} unread message${unreadMessages === 1 ? "" : "s"}. Open messages.` : "No unread messages. Open messages."}
+          title={unreadMessages > 0 ? `${unreadMessages} unread message${unreadMessages === 1 ? "" : "s"}` : "Messages"}
+          className="relative font-code text-[10px] px-3 py-1.5 border transition-colors hover:bg-teal-400/5 flex items-center justify-center"
+          style={{
+            borderColor: unreadMessages > 0 ? "rgba(255,77,109,0.4)" : "rgba(0,229,184,0.2)",
+            color: unreadMessages > 0 ? "var(--coral)" : "var(--dim)"
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+          </svg>
+          {unreadMessages > 0 && (
+            <span className="absolute -top-2 -right-2 min-w-5 h-5 px-1 flex items-center justify-center font-code text-[9px] font-bold"
+              style={{ background: "var(--coral)", color: "#fff", borderRadius: 999, boxShadow: "0 0 0 2px #04080d" }} aria-hidden="true">
+              {unreadMessages > 99 ? "99+" : unreadMessages}
+            </span>
+          )}
+        </button>
+        <span className="sr-only" aria-live="polite" role="status">
+          {unreadMessages > 0 ? `${unreadMessages} unread message${unreadMessages === 1 ? "" : "s"}` : "No unread messages"}
+        </span>
         <a href="/" target="_blank" rel="noopener noreferrer" className="font-code text-[10px] px-3 py-1.5 border transition-colors hover:bg-teal-400/5" style={{ borderColor: "rgba(0,229,184,0.2)", color: "var(--dim)" }}>view site ↗</a>
         <button disabled={pending} onClick={reset} title="Discard unsaved changes" className="font-code text-[10px] px-3 py-1.5 border transition-colors" style={{ borderColor: "rgba(255,77,109,0.2)", color: "var(--coral)" }}>reset</button>
         <button disabled={pending || !dirty} onClick={save} className="font-code text-[10px] px-4 py-1.5 font-medium transition-opacity hover:opacity-90 disabled:opacity-50" style={{ background: "var(--teal)", color: "var(--bg)" }}>{pending ? "please wait…" : "save changes"}</button>
@@ -116,7 +187,7 @@ export default function AdminEditor({ initialData, email }: { initialData: Portf
             {tab === "projects" && <ProjectsTab data={draft} onChange={change} />}
             {tab === "experience" && <ExperienceTab data={draft} onChange={change} />}
           </fieldset>
-          {tab === "messages" && <MessagesTab />}
+          {tab === "messages" && <MessagesTab onUnreadChange={updateUnreadMessages} />}
           {tab === "settings" && <SettingsTab email={email} notify={setToast} />}
         </motion.div>
         {dirty && <div className="admin-save-dock fixed bottom-6 right-6 z-50"><button disabled={pending} onClick={save} className="font-code text-sm px-6 py-3 font-medium shadow-lg transition-opacity hover:opacity-90 disabled:opacity-50" style={{ background: "var(--teal)", color: "var(--bg)", boxShadow: "0 0 30px rgba(0,229,184,0.3)" }}>{pending ? "saving…" : "save changes →"}</button></div>}

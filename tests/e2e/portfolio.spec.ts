@@ -32,6 +32,7 @@ test("anonymous users cannot open the editor, read messages, or change content",
   await expect(page.getByLabel("password", { exact: true })).toBeVisible();
   expect((await request.get("/api/admin/content")).status()).toBe(401);
   expect((await request.get("/api/admin/messages")).status()).toBe(401);
+  expect((await request.get("/api/admin/messages/unread")).status()).toBe(401);
   expect((await request.put("/api/admin/content", { headers: { origin: "http://127.0.0.1:3100" }, data: {} })).status()).toBe(401);
   expect((await request.post("/api/auth/login", { headers: { origin: "https://untrusted.example.org" }, data: {} })).status()).toBe(403);
 });
