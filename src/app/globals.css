@@ -216,6 +216,20 @@ select { color-scheme: dark; }
 .admin-surface { position: relative; z-index: 1; }
 .custom-cursor { display: none; }
 .custom-cursor-active .custom-cursor { display: contents; }
+.custom-cursor-line {
+  background: var(--teal);
+  opacity: 0.18;
+  will-change: transform;
+  transition: opacity 140ms linear;
+}
+.custom-cursor-dot-wrap { will-change: transform; }
+.custom-cursor-dot {
+  background: var(--teal);
+  box-shadow: 0 0 6px var(--teal);
+  transition: transform 140ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.custom-cursor[data-hover="true"] .custom-cursor-line { opacity: 0.3; }
+.custom-cursor[data-hover="true"] .custom-cursor-dot { transform: scale(2.5); }
 .empty-state { padding: 2rem 0; color: var(--dim); font-family: "Fira Code", monospace; font-size: 11px; }
 .skip-link { position: fixed; top: 1rem; left: 5rem; z-index: 10000; padding: 0.75rem 1rem; background: var(--teal); color: var(--bg); transform: translateY(-200%); }
 .skip-link:focus { transform: translateY(0); }
@@ -244,7 +258,7 @@ select { color-scheme: dark; }
 .project-year { max-width: 5rem; overflow-wrap: anywhere; }
 
 @media (pointer: fine) and (hover: hover) {
-  .custom-cursor-active body, .custom-cursor-active body a, .custom-cursor-active body button { cursor: none; }
+  .custom-cursor-active, .custom-cursor-active body, .custom-cursor-active body * { cursor: none !important; }
   .marquee-inner:hover { animation-play-state: paused; }
   .skill-card { transition: border-color 180ms, background 180ms, transform 180ms; }
   .skill-card:hover { border-color: var(--skill-border); background: var(--skill-background); transform: translateY(-3px); }
